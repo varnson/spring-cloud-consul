@@ -21,6 +21,8 @@ import java.util.Map;
 
 import org.springframework.cloud.consul.model.http.agent.NewService;
 import org.springframework.cloud.consul.model.http.agent.Service;
+import org.springframework.cloud.consul.model.http.catalog.CatalogDeregistration;
+import org.springframework.cloud.consul.model.http.catalog.CatalogRegistration;
 import org.springframework.cloud.consul.model.http.catalog.CatalogService;
 import org.springframework.cloud.consul.model.http.catalog.Node;
 import org.springframework.cloud.consul.model.http.event.Event;
@@ -97,6 +99,16 @@ public interface ConsulClient {
 	@GetExchange("/v1/catalog/nodes")
 	ResponseEntity<List<Node>> getCatalogNodes();
 
+	@PutExchange("/v1/catalog/register")
+	ResponseEntity<Void> catalogServiceRegister(
+			@RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken,
+			@RequestBody CatalogRegistration registration);
+
+	@PutExchange("/v1/catalog/deregister")
+	ResponseEntity<Void> catalogServiceDeregister(
+			@RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken,
+			@RequestBody CatalogDeregistration deregistration);
+
 	@GetExchange("/v1/health/checks/{serviceName}")
 	ResponseEntity<List<Check>> getHealthChecksForService(@PathVariable String serviceName);
 
@@ -107,6 +119,12 @@ public interface ConsulClient {
 	ResponseEntity<List<HealthService>> getHealthServices(@PathVariable String serviceName,
 			@RequestParam boolean passing, @RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken,
 			@RequestParam(required = false) List<String> tag, QueryParams queryParams);
+
+	@GetExchange("/v1/health/service/{serviceName}")
+	ResponseEntity<List<HealthService>> getHealthServices(@PathVariable String serviceName,
+			@RequestParam boolean passing, @RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken,
+			@RequestParam(required = false) List<String> tag, QueryParams queryParams,
+			@RequestParam(required = false) boolean cached);
 
 	@DeleteExchange("/v1/kv/{context}")
 	ResponseEntity<Void> deleteKVValues(@PathVariable String context);
@@ -131,15 +149,24 @@ public interface ConsulClient {
 	@PutExchange(url = "/v1/kv/{context}", contentType = MediaType.TEXT_PLAIN_VALUE)
 	ResponseEntity<Boolean> setKVValue(@PathVariable String context, @RequestBody String value);
 
-	@GetExchange("/v1/events")
-	ResponseEntity<List<Event>> eventList();
+	@GetExchange("/v1/event/list")
+	ResponseEntity<List<Event>> eventList(@RequestParam(name = "name", required = false) String name,
+			@RequestParam(name = "node", required = false) String node,
+			@RequestParam(name = "service", required = false) String service,
+			@RequestParam(name = "tag", required = false) String tag,
+			@RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken);
 
-	@GetExchange("/v1/events")
+	@GetExchange("/v1/event/list")
 	ResponseEntity<List<Event>> eventList(@RequestParam("wait") @WaitTimeFormat Long eventTimeout,
-			@RequestParam("index") long index);
+			@RequestParam("index") long index, @RequestParam(name = "name", required = false) String name,
+			@RequestParam(name = "node", required = false) String node,
+			@RequestParam(name = "service", required = false) String service,
+			@RequestParam(name = "tag", required = false) String tag,
+			@RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken);
 
 	@PostExchange("/v1/event/fire/{name}")
-	ResponseEntity<Event> eventFire(@PathVariable String name, @RequestBody String payload);
+	ResponseEntity<Event> eventFire(@PathVariable String name, @RequestBody String payload,
+			@RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken);
 
 	class QueryParams {
 
@@ -182,12 +209,11 @@ public interface ConsulClient {
 			this(datacenter, ConsistencyMode.DEFAULT, waitTime, index, null);
 		}
 
-		private QueryParams(String datacenter, ConsistencyMode consistencyMode, long waitTime, long index) {
+		public QueryParams(String datacenter, ConsistencyMode consistencyMode, long waitTime, long index) {
 			this(datacenter, consistencyMode, waitTime, index, null);
 		}
 
-		private QueryParams(String datacenter, ConsistencyMode consistencyMode, long waitTime, long index,
-				String near) {
+		public QueryParams(String datacenter, ConsistencyMode consistencyMode, long waitTime, long index, String near) {
 			this.datacenter = datacenter;
 			this.consistencyMode = consistencyMode;
 			this.waitTime = waitTime;

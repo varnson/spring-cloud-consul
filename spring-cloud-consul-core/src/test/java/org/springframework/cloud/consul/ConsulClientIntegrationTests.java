@@ -34,7 +34,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import org.springframework.cloud.consul.model.http.catalog.CatalogDeregistration;
+import org.springframework.cloud.consul.model.http.catalog.CatalogRegistration;
 import org.springframework.cloud.consul.model.http.event.Event;
+import org.springframework.cloud.consul.model.http.health.HealthService;
 import org.springframework.cloud.consul.model.http.kv.GetValue;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -154,7 +157,7 @@ class ConsulClientIntegrationTests {
 	@Test
 	void eventListWithWaitTimeAndIndex() {
 
-		mockServerClient.when(request().withMethod("GET").withPath("/v1/events"))
+		mockServerClient.when(request().withMethod("GET").withPath("/v1/event/list"))
 			.respond(response().withStatusCode(200)
 				.withHeaders(new Header("Content-Type", "application/json"))
 				.withBody(json("[\n" + "  {\n" + "    \"ID\": \"5548d61d-9e97-8e0e-e2b3-1f5f0af5b1a2\",\n"
@@ -163,11 +166,11 @@ class ConsulClientIntegrationTests {
 						+ "    \"TagFilter\": \"\",\n" + "    \"Version\": 1,\n" + "    \"LTime\": 19\n" + "  }\n"
 						+ "]\n")));
 
-		ResponseEntity<List<Event>> response = client.eventList(5L, 2);
+		ResponseEntity<List<Event>> response = client.eventList(5L, 2, "", "", "", "", "");
 
 		mockServerClient.verify(
 				request().withMethod("GET")
-					.withPath("/v1/events")
+					.withPath("/v1/event/list")
 					.withQueryStringParameters(Parameter.param("wait", "5s"), Parameter.param("index", "2")),
 				VerificationTimes.exactly(1));
 
@@ -180,6 +183,119 @@ class ConsulClientIntegrationTests {
 		Event event = events.get(0);
 		assertThat(event.getId()).isEqualTo("5548d61d-9e97-8e0e-e2b3-1f5f0af5b1a2");
 		assertThat(event.getName()).isEqualTo("deploy");
+	}
+
+	@Test
+	void getHealthService() {
+
+		mockServerClient.when(request().withMethod("GET").withPath("/v1/health/service/testservice"))
+			.respond(response().withStatusCode(200));
+		ResponseEntity<List<HealthService>> response = client.getHealthServices("testservice", true, "token12345",
+				List.of("tag1", "tag2"),
+				new ConsulClient.QueryParams(null, ConsulClient.ConsistencyMode.STALE, 3, 12345), true);
+
+		mockServerClient.verify(request().withMethod("GET")
+			.withPath("/v1/health/service/testservice")
+			.withHeader(Header.header("X-Consul-Token", "token12345"))
+			.withQueryStringParameter("tag", "tag1", "tag2")
+			.withQueryStringParameter("passing", "true")
+			.withQueryStringParameter("stale", "true")
+			.withQueryStringParameter("wait", "3s")
+			.withQueryStringParameter("index", "12345")
+			.withQueryStringParameter("cached", "true"), VerificationTimes.exactly(1));
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void catalogServiceRegister() {
+
+		mockServerClient.when(request().withMethod("PUT").withPath("/v1/catalog/register"))
+			.respond(response().withStatusCode(200));
+
+		CatalogRegistration registration = new CatalogRegistration();
+		registration.setDatacenter("dc1");
+		registration.setNode("test-node");
+		registration.setAddress("192.168.1.1");
+
+		CatalogRegistration.Service service = new CatalogRegistration.Service();
+		service.setId("test-service-1");
+		service.setService("test-service");
+		service.setPort(8080);
+		registration.setService(service);
+
+		ResponseEntity<Void> response = client.catalogServiceRegister(null, registration);
+
+		mockServerClient.verify(request().withMethod("PUT")
+			.withPath("/v1/catalog/register")
+			.withHeader(Header.header("X-Consul-Token", "")), VerificationTimes.exactly(0));
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void catalogServiceRegisterWithAclToken() {
+		mockServerClient
+			.when(request().withMethod("PUT")
+				.withPath("/v1/catalog/register")
+				.withHeader(Header.header("X-Consul-Token", "myAclToken")))
+			.respond(response().withStatusCode(200));
+
+		CatalogRegistration registration = new CatalogRegistration();
+		registration.setDatacenter("dc1");
+		registration.setNode("test-node");
+		registration.setAddress("192.168.1.1");
+
+		CatalogRegistration.Service service = new CatalogRegistration.Service();
+		service.setId("test-service-1");
+		service.setService("test-service");
+		service.setPort(8080);
+		registration.setService(service);
+
+		ResponseEntity<Void> response = client.catalogServiceRegister("myAclToken", registration);
+
+		mockServerClient.verify(request().withMethod("PUT")
+			.withPath("/v1/catalog/register")
+			.withHeader(Header.header("X-Consul-Token", "myAclToken")), VerificationTimes.exactly(1));
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void catalogServiceDeregister() {
+		mockServerClient.when(request().withMethod("PUT").withPath("/v1/catalog/deregister"))
+			.respond(response().withStatusCode(200));
+
+		CatalogDeregistration deregistration = new CatalogDeregistration();
+		deregistration.setDatacenter("dc1");
+		deregistration.setNode("test-node");
+		deregistration.setServiceId("test-service-1");
+
+		ResponseEntity<Void> response = client.catalogServiceDeregister(null, deregistration);
+
+		verifyRequestSentToConsul("PUT", "/v1/catalog/deregister", 1);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void catalogServiceDeregisterWithAclToken() {
+		mockServerClient
+			.when(request().withMethod("PUT")
+				.withPath("/v1/catalog/deregister")
+				.withHeader(Header.header("X-Consul-Token", "myAclToken")))
+			.respond(response().withStatusCode(200));
+
+		CatalogDeregistration deregistration = new CatalogDeregistration();
+		deregistration.setDatacenter("dc1");
+		deregistration.setNode("test-node");
+		deregistration.setServiceId("test-service-1");
+
+		ResponseEntity<Void> response = client.catalogServiceDeregister("myAclToken", deregistration);
+
+		mockServerClient.verify(request().withMethod("PUT")
+			.withPath("/v1/catalog/deregister")
+			.withHeader(Header.header("X-Consul-Token", "myAclToken")), VerificationTimes.exactly(1));
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 	}
 
 	private void verifyRequestSentToConsul(String method, String path, int times) {
