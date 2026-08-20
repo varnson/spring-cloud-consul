@@ -14,9 +14,7 @@
 	<packaging>pom</packaging>
 	<name>spring-cloud-consul-dependencies</name>
 	<description>Spring Cloud Consul Dependencies</description>
-	<properties>
-		<consul-api.version>1.4.5</consul-api.version>
-	</properties>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -64,17 +62,7 @@
 				<artifactId>spring-cloud-starter-consul-all</artifactId>
 				<version>${project.version}</version>
 			</dependency>
-			<dependency>
-				<groupId>com.ecwid.consul</groupId>
-				<artifactId>consul-api</artifactId>
-				<version>${consul-api.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>javax.servlet</groupId>
-						<artifactId>servlet-api</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 	<profiles>
