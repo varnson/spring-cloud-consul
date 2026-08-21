@@ -105,8 +105,7 @@ class ConsulClientIntegrationTests {
 		ResponseEntity<Void> response = client.catalogServiceRegister(null, registration);
 
 		mockServerClient.verify(request().withMethod("PUT")
-			.withPath("/v1/catalog/register")
-			.withHeader(Header.header("X-Consul-Token", "")), VerificationTimes.exactly(0));
+			.withPath("/v1/catalog/register"), VerificationTimes.exactly(1));
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 	}
 
