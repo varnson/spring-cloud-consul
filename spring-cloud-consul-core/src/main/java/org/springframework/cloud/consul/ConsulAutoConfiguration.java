@@ -240,7 +240,7 @@ public class ConsulAutoConfiguration {
 					builder.addRequestParameter("dc", params.getDatacenter());
 				}
 
-				if (params.getConsistencyMode() != ConsulClient.ConsistencyMode.DEFAULT) {
+				if (params.getConsistencyMode() != null && params.getConsistencyMode() != ConsulClient.ConsistencyMode.DEFAULT) {
 					builder.addRequestParameter(params.getConsistencyMode().getParamName(), "true");
 				}
 

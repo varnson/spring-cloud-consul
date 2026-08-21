@@ -112,7 +112,7 @@ public interface ConsulClient {
 	ResponseEntity<List<HealthService>> getHealthServices(@PathVariable String serviceName,
 			@RequestParam boolean passing, @RequestHeader(name = ACL_TOKEN_HEADER, required = false) String aclToken,
 			@RequestParam(required = false) List<String> tag, QueryParams queryParams,
-			@RequestParam(required = false) boolean cached);
+			@RequestParam(required = false) Boolean cached);
 
 	@DeleteExchange("/v1/kv/{context}")
 	ResponseEntity<Void> deleteKVValues(@PathVariable String context);

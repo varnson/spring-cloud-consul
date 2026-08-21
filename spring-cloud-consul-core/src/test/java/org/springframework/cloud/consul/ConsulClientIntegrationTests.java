@@ -153,7 +153,7 @@ class ConsulClientIntegrationTests {
 	}
 
 	@Test
-	void getHealthService() {
+	void getHealthServiceWithCached() {
 
 		mockServerClient.when(request().withMethod("GET").withPath("/v1/health/service/testservice"))
 			.respond(response().withStatusCode(200));
@@ -170,6 +170,25 @@ class ConsulClientIntegrationTests {
 			.withQueryStringParameter("wait", "3s")
 			.withQueryStringParameter("index", "12345")
 			.withQueryStringParameter("cached", "true"), VerificationTimes.exactly(1));
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void getHealthServiceWithoutCached() {
+
+		mockServerClient.when(request().withMethod("GET").withPath("/v1/health/service/testservice"))
+			.respond(response().withStatusCode(200));
+		ResponseEntity<List<HealthService>> response = client.getHealthServices("testservice", true, "token12345",
+			List.of("tag1", "tag2"),
+			new ConsulClient.QueryParams(null, null, 3, 12345), null);
+
+		mockServerClient.verify(request().withMethod("GET")
+			.withPath("/v1/health/service/testservice")
+			.withHeader(Header.header("X-Consul-Token", "token12345"))
+			.withQueryStringParameter("tag", "tag1", "tag2")
+			.withQueryStringParameter("passing", "true")
+			.withQueryStringParameter("wait", "3s")
+			.withQueryStringParameter("index", "12345"), VerificationTimes.exactly(1));
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 	}
 
